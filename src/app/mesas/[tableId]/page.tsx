@@ -9,7 +9,7 @@ import WaiterGate from "@/components/WaiterGate";
 import { getAvailableDishes, getTables, setTableOccupied } from "@/services/restaurantsApi";
 import { closeOrder, getOpenOrderForTable, orderTotal, sendCartToKitchen } from "@/services/ordersService";
 import { getWaiterName } from "@/lib/waiter";
-import { elapsedSince } from "@/lib/time";
+import { elapsedSince, formatTime12h } from "@/lib/time";
 import type { CartLine, Dish, OrderWithItems, RestaurantTable } from "@/types";
 
 export default function MesaPage({ params }: { params: { tableId: string } }) {
@@ -155,7 +155,7 @@ export default function MesaPage({ params }: { params: { tableId: string } }) {
           </div>
           {table.nextReservationTime && (
             <span className="ml-auto flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-600">
-              <CalendarClock size={14} /> Reservada {table.nextReservationTime}
+              <CalendarClock size={14} /> Reservada {formatTime12h(table.nextReservationTime)}
             </span>
           )}
         </header>

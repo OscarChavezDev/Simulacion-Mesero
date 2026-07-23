@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CalendarClock, Clock, Users } from "lucide-react";
 import type { OrderWithItems, RestaurantTable } from "@/types";
 import { orderTotal } from "@/services/ordersService";
-import { elapsedSince } from "@/lib/time";
+import { elapsedSince, formatTime12h } from "@/lib/time";
 
 type CardStatus = "LIBRE" | "OCUPADA" | "NO_DISPONIBLE";
 
@@ -59,7 +59,7 @@ export default function TableCard({
       )}
       {table.nextReservationTime && (
         <div className="mt-1 flex items-center gap-1 text-xs font-medium text-indigo-600">
-          <CalendarClock size={12} /> Reservada {table.nextReservationTime}
+          <CalendarClock size={12} /> Reservada {formatTime12h(table.nextReservationTime)}
         </div>
       )}
     </Link>
