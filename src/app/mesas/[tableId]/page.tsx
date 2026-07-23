@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Minus, Plus, Receipt, Send } from "lucide-react";
+import { ArrowLeft, CalendarClock, Clock, Minus, Plus, Receipt, Send, UtensilsCrossed } from "lucide-react";
 import toast from "react-hot-toast";
 import WaiterGate from "@/components/WaiterGate";
 import { getAvailableDishes, getTables, setTableOccupied } from "@/services/restaurantsApi";
 import { closeOrder, getOpenOrderForTable, orderTotal, sendCartToKitchen } from "@/services/ordersService";
 import { getWaiterName } from "@/lib/waiter";
+import { elapsedSince } from "@/lib/time";
 import type { CartLine, Dish, OrderWithItems, RestaurantTable } from "@/types";
 
 export default function MesaPage({ params }: { params: { tableId: string } }) {
@@ -22,8 +23,8 @@ export default function MesaPage({ params }: { params: { tableId: string } }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  async function load() {
-    setLoading(true);
+  async function load(opts: { silent?: boolean } = {}) {
+    if (!opts.silent) setLoading(true);
     try {
       const [tables, dishList, currentOrder] = await Promise.all([
         getTables(),
@@ -35,14 +36,20 @@ export default function MesaPage({ params }: { params: { tableId: string } }) {
       setOrder(currentOrder);
     } catch (err) {
       console.error(err);
-      toast.error("No se pudo cargar la mesa");
+      if (!opts.silent) toast.error("No se pudo cargar la mesa");
     } finally {
-      setLoading(false);
+      if (!opts.silent) setLoading(false);
     }
   }
 
   useEffect(() => {
     load();
+    // Refresco en segundo plano: si otro mesero o el dueño (dashboard de
+    // Restaurants) cambia algo mientras esta pantalla está abierta, se
+    // refleja solo. Silencioso para no interrumpir al mesero armando el
+    // carrito ni mostrarle el loader de pantalla completa cada 10s.
+    const interval = setInterval(() => load({ silent: true }), 10000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableId]);
 
@@ -146,11 +153,28 @@ export default function MesaPage({ params }: { params: { tableId: string } }) {
             <h1 className="text-xl font-bold text-gray-900">Mesa {table.tableNumber}</h1>
             <p className="text-sm text-gray-500">{table.capacity} personas</p>
           </div>
+          {table.nextReservationTime && (
+            <span className="ml-auto flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-600">
+              <CalendarClock size={14} /> Reservada {table.nextReservationTime}
+            </span>
+          )}
         </header>
+
+        {table.currentStatus === "UNAVAILABLE" && (
+          <div className="mb-6 rounded-2xl border border-gray-300 bg-gray-100 p-3 text-sm text-gray-700">
+            Esta mesa está marcada como <strong>no disponible</strong> en Restaurants (fuera de
+            servicio). Confirma con el dueño antes de sentar clientes aquí.
+          </div>
+        )}
 
         {order && order.order_items.length > 0 && (
           <section className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <h2 className="mb-2 text-sm font-semibold text-amber-900">Ya en cocina</h2>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-amber-900">Ya en cocina</h2>
+              <span className="flex items-center gap-1 text-xs text-amber-700">
+                <Clock size={12} /> {elapsedSince(order.sent_to_kitchen_at ?? order.created_at)}
+              </span>
+            </div>
             <ul className="mb-3 space-y-1 text-sm text-amber-900">
               {order.order_items.map((item) => (
                 <li key={item.id} className="flex justify-between">
@@ -188,13 +212,30 @@ export default function MesaPage({ params }: { params: { tableId: string } }) {
                   <button
                     key={dish.id}
                     onClick={() => addToCart(dish)}
-                    className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 text-left hover:border-brand-400"
+                    className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm transition hover:border-brand-400 hover:shadow"
                   >
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{dish.name}</p>
+                    {dish.imageUrl ? (
+                      <img
+                        src={dish.imageUrl}
+                        alt=""
+                        className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-400">
+                        <UtensilsCrossed size={18} />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-gray-900">{dish.name}</p>
                       <p className="text-xs text-gray-500">S/ {dish.price.toFixed(2)}</p>
                     </div>
-                    <Plus size={16} className="text-brand-600" />
+                    <Plus
+                      size={16}
+                      className="shrink-0 text-brand-600 transition group-hover:scale-110"
+                    />
                   </button>
                 ))}
             </div>

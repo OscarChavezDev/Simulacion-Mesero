@@ -15,15 +15,22 @@ compartir base de datos ni código:
 | Qué | Quién llama a quién |
 |---|---|
 | Menú (platos disponibles) | Meseros → `GET {Restaurants}/v1/dishes/restaurant/{restaurantId}` (público) |
-| Mesas del local | Meseros → `GET {Restaurants}/v1/restaurants/{restaurantId}/tables` (público) |
-| Marcar mesa ocupada/libre | Meseros → `PATCH {Restaurants}/v1/table-order-integration/tables/{tableId}/order-status` (requiere el header secreto `X-Table-Integration-Key`) |
+| Mesas del local (incluye hora de próxima reserva) | Meseros → `GET {Restaurants}/v1/restaurants/{restaurantId}/tables` (público) |
+| Marcar mesa ocupada/libre | Meseros → `PATCH {Restaurants}/v1/restaurants/{restaurantId}/tables/{tableId}/status?status=OCCUPIED\|AVAILABLE` (requiere `X-API-Key`) |
 
-El endpoint para marcar la mesa ya existía en Restaurants
-(`TableOrderIntegrationController`) como webhook piloto para exactamente este
-caso de uso — no hubo que tocar ese backend, salvo documentar la variable de
-entorno que faltaba en `.env.example`. La clave nunca llega al navegador:
-`src/app/api/mesas/[tableId]/estado/route.ts` es una ruta servidor de
-Next.js que la agrega y reenvía la llamada.
+**La API key es del propio dueño del restaurante**, generada desde su cuenta:
+Restaurants → dashboard → **API Keys** → "Generar nueva clave" (el mismo
+formulario de autoservicio que ya existía para el rol `DEVELOPER`, ahora
+también disponible para `RESTAURANTE_OWNER`). No es un secreto fijo inventado
+por nosotros — el dueño la genera, la revoca o la regenera cuando quiera
+desde su propio panel, sin necesitar un redeploy. Al autenticar con esa key,
+Restaurants la trata exactamente como si el dueño hubiera iniciado sesión: el
+mismo chequeo de "¿eres dueño de este restaurante?" (`OwnershipGuard`) que ya
+protegía ese endpoint sigue aplicando sin cambios.
+
+La clave nunca llega al navegador del mesero: `src/app/api/mesas/[tableId]/estado/route.ts`
+es una ruta servidor de Next.js que la agrega (header `X-API-Key`) y reenvía
+la llamada.
 
 Los pedidos (comandas) e items del mesero viven **solo en Supabase de este
 proyecto**. Restaurants no los ve ni los necesita: para Restaurants, lo único
@@ -43,9 +50,9 @@ que existe es "esta mesa está ocupada o libre".
      con `GET {NEXT_PUBLIC_RESTAURANTS_API_URL}/v1/restaurants?search=Encanto`
      o desde Swagger (`/api/swagger-ui/index.html`) del backend de
      Restaurants.
-   - `TABLE_ORDER_INTEGRATION_API_KEY` — debe ser **idéntica** a la que está
-     en `Restaurants/.env` bajo la misma variable (ya se generó una para
-     desarrollo local; cópiala de ahí).
+   - `RESTAURANTS_API_KEY` — inicia sesión en Restaurants como el dueño del
+     restaurante piloto, ve a **dashboard → API Keys**, genera una clave
+     nueva y pégala acá. Solo se muestra una vez al crearla.
 3. Asegúrate de que Restaurants esté corriendo (`docker compose up -d` en
    `../Restaurants`) — su `CORS_ALLOWED_ORIGINS` ya incluye
    `http://localhost:3001` por defecto, que es donde corre este proyecto.
@@ -71,7 +78,7 @@ npm run dev     # http://localhost:3001
 
 ## Alcance actual (deliberadamente básico)
 
-- Un solo restaurante (el piloto), igual que el webhook que consume.
+- Un solo restaurante (el piloto) — usa una sola API key, la del dueño de ese restaurante.
 - Sin login real de mesero, solo nombre local.
 - Sin pantalla de cocina (KDS): "enviar a cocina" solo persiste el pedido y
   libera/ocupa la mesa. El modelo (`order_items`) ya queda listo para sumar

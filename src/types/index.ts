@@ -8,6 +8,8 @@ export interface RestaurantTable {
   sectionName: string | null;
   isActive: boolean;
   currentStatus: string; // "AVAILABLE" | "OCCUPIED" | ...
+  /** Hora (HH:mm) de la próxima reserva de hoy para esta mesa, si tiene. No incluye datos del cliente. */
+  nextReservationTime: string | null;
 }
 
 export type DishCategory =
