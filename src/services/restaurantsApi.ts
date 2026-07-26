@@ -23,9 +23,8 @@ export async function getAvailableDishes(): Promise<Dish[]> {
 }
 
 // Marca la mesa ocupada/libre. Llama a NUESTRA ruta servidor (/api/mesas/...)
-// y no directo al sistema de Restaurants: el header secreto
-// X-Table-Integration-Key solo puede vivir en el servidor, nunca en el
-// navegador del mesero.
+// y no directo al sistema de Restaurants: la API key del dueño (X-API-Key)
+// solo puede vivir en el servidor, nunca en el navegador del mesero.
 export async function setTableOccupied(tableId: string, occupied: boolean): Promise<void> {
   await axios.patch(`/api/mesas/${tableId}/estado`, { occupied });
 }
